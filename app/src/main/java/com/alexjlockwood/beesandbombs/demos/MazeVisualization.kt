@@ -25,8 +25,8 @@ private const val W = 1 shl 2
 private const val E = 1 shl 3
 
 // TODO: make dp?
-private const val CELL_SIZE = 8f
-private const val CELL_SPACING = 8f
+private const val CELL_SIZE = 8f * 2
+private const val CELL_SPACING = 4f * 2
 
 private const val COLOR_SPEED = 300f
 
@@ -62,27 +62,27 @@ fun MazeVisualization(modifier: Modifier = Modifier) {
                 onDraw {
                     drawRect(Color.Black)
 
+                    val nextFrontier = mutableListOf<Int>()
+                    val currentColor = sinebow(frameCounter / COLOR_SPEED)
+                    for (i in frontier) {
+                        fills[i] = currentColor
+                        if (cells[i] and E != 0 && fills[i + 1] == null) nextFrontier.add(i + 1)
+                        if (cells[i] and W != 0 && fills[i - 1] == null) nextFrontier.add(i - 1)
+                        if (cells[i] and S != 0 && fills[i + mazeWidth] == null) nextFrontier.add(i + mazeWidth)
+                        if (cells[i] and N != 0 && fills[i - mazeWidth] == null) nextFrontier.add(i - mazeWidth)
+                    }
+
                     translate(
                         round((size.width - mazeWidth * CELL_SIZE - (mazeWidth + 1) * CELL_SPACING) / 2f),
                         round((size.height - mazeHeight * CELL_SIZE - (mazeHeight + 1) * CELL_SPACING) / 2f),
                     ) {
-                        val nextFrontier = mutableListOf<Int>()
-                        val currentColor = sinebow(frameCounter / COLOR_SPEED)
-                        for (i in frontier) {
-                            fills[i] = currentColor
-                            if (cells[i] and E != 0 && fills[i + 1] == null) nextFrontier.add(i + 1)
-                            if (cells[i] and W != 0 && fills[i - 1] == null) nextFrontier.add(i - 1)
-                            if (cells[i] and S != 0 && fills[i + mazeWidth] == null) nextFrontier.add(i + mazeWidth)
-                            if (cells[i] and N != 0 && fills[i - mazeWidth] == null) nextFrontier.add(i - mazeWidth)
-                        }
-
                         drawMaze(cells, fills)
+                    }
 
-                        if (nextFrontier.isNotEmpty()) {
-                            frontier.clear()
-                            frontier.addAll(nextFrontier)
-                            frameCounter++
-                        }
+                    if (nextFrontier.isNotEmpty()) {
+                        frontier.clear()
+                        frontier.addAll(nextFrontier)
+                        frameCounter++
                     }
                 }
             }
@@ -121,7 +121,6 @@ private fun DrawScope.drawMaze(cells: List<Int>, fills: List<Color?>) {
         }
     }
 }
-
 
 private fun generateMaze(heap: Heap, mazeWidth: Int, mazeHeight: Int): List<Int> {
     heap.add(Edge(0, N))
@@ -211,3 +210,189 @@ private class RandomizedTraversalHeap : Heap {
 }
 
 private data class Edge(val index: Int, val direction: Int, val priority: Double = Math.random())
+
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+// MAZE SOLVER
+
+@Composable
+fun MazeSolver(modifier: Modifier = Modifier) {
+    var frameCounter by mutableStateOf(0)
+    Box(
+        modifier.drawWithCache {
+            val mazeWidth = size.mazeWidth()
+            val mazeHeight = size.mazeHeight()
+            val cells = generateMaze(PrimsHeap(), mazeWidth, mazeHeight)
+            val defaultFills = cells.map { Color.White }
+            val fills = cells.map { null }.toMutableList<Color?>()
+            val mutableFills = cells.map { Color.White }.toMutableList<Color>()
+            val mutablePathFills = cells.map { Color.White }.toMutableList<Color>()
+
+            val start = (mazeHeight - 1) * mazeWidth
+            val parent = (0 until mazeWidth * mazeHeight).map { null }.toMutableList<Int?>()
+            parent[start] = -1
+
+            val results = explore(start, parent, cells, mazeWidth, mazeHeight)
+
+            val parent2 = parent.map { it!! }
+
+            var k by mutableStateOf(start)
+
+            onDraw {
+                drawRect(Color.Black)
+
+
+                val currentColor = sinebow(frameCounter / 1000f)
+                val j = results[frameCounter]
+                fillPath(k, parent2, currentColor, mutableFills)
+                for (i in 0 until mutableFills.size) {
+                    mutablePathFills[i] = mutableFills[i]
+                }
+
+                k = j
+                fillPath(j, parent2, Color.Black, mutablePathFills)
+//                    pathFills[j] = Color.Black
+//                    fillPath(k, parent2, Color.Black)
+
+//                fillCells(cells, mutableFills)
+                fillCells(cells, mutablePathFills)
+
+                if (frameCounter + 1 < results.size && getScore(k, mazeWidth) != 0) {
+                    frameCounter++
+                }
+
+            }
+        }
+    )
+}
+
+private data class CostEdge(val i: Int, val priority: Int)
+
+private fun explore(start: Int, parent: MutableList<Int?>, cells: List<Int>, mazeWidth: Int, mazeHeight: Int): List<Int> {
+    val frontier = PriorityQueue<CostEdge>(10) { a, b -> a.priority.compareTo(b.priority) }
+    val cost = (0 until mazeWidth * mazeHeight).map { 0 }.toMutableList()
+    frontier.add(CostEdge(start, getScore(start, mazeWidth)))
+    val results = mutableListOf<Int>()
+    while (frontier.isNotEmpty()) {
+        val i = frontier.remove().i
+        val c = cost[i]
+        if (cells[i] and E != 0) {
+            val j = i + 1
+            if (parent[j] == null) {
+                parent[j] = i
+                cost[j] = c + 1
+                frontier.add(CostEdge(j, c + getScore(j, mazeWidth)))
+                results.add(j)
+            }
+        }
+        if (cells[i] and W != 0) {
+            val j = i - 1
+            if (parent[j] == null) {
+                parent[j] = i
+                cost[j] = c + 1
+                frontier.add(CostEdge(j, c + getScore(j, mazeWidth)))
+                results.add(j)
+            }
+        }
+        if (cells[i] and S != 0) {
+            val j = i + mazeWidth
+            if (parent[j] == null) {
+                parent[j] = i
+                cost[j] = c + 1
+                frontier.add(CostEdge(j, c + getScore(j, mazeWidth)))
+                results.add(j)
+            }
+        }
+        if (cells[i] and N != 0) {
+            val j = i - mazeWidth
+            if (parent[j] == null) {
+                parent[j] = i
+                cost[j] = c + 1
+                frontier.add(CostEdge(j, c + getScore(j, mazeWidth)))
+                results.add(j)
+            }
+        }
+    }
+    return results
+}
+
+private fun getScore(i: Int, mazeWidth: Int): Int {
+    val x = mazeWidth - 1 - (i % mazeWidth)
+    val y = 0 - (i / mazeWidth)
+    return x * x + y * y
+}
+
+private fun DrawScope.fillCells(cells: List<Int>, fills: List<Color?>) {
+    for (i in cells.indices) {
+        val color = fills[i] ?: Color.White
+        if (cells[i] and S != 0) {
+            fillEdge(i, i + size.mazeWidth(), color)
+        }
+        if (cells[i] and E != 0) {
+            fillEdge(i, i + 1, color)
+        }
+    }
+}
+
+private fun DrawScope.fillEdge(i0: Int, j0: Int, color: Color) {
+    val i = if (j0 < i0) j0 else i0
+    val j = if (j0 < i0) i0 else j0
+    val x = i % size.mazeWidth()
+    val y = i / size.mazeWidth()
+    if (i == j - 1) {
+        drawRect(
+            color = color,
+            topLeft = Offset((x + 1) * (CELL_SIZE + CELL_SPACING) - CELL_SIZE, y * CELL_SIZE + (y + 1) * CELL_SPACING),
+            size = Size(CELL_SPACING + CELL_SIZE * 2, CELL_SIZE),
+        )
+    } else {
+        drawRect(
+            color = color,
+            topLeft = Offset(x * CELL_SIZE + (x + 1) * CELL_SPACING, (y + 1) * (CELL_SIZE + CELL_SPACING) - CELL_SIZE),
+            size = Size(CELL_SIZE, CELL_SPACING + CELL_SIZE * 2),
+        )
+    }
+}
+
+private fun DrawScope.fillPath(i: Int, parent: List<Int>, color: Color, mutableFills: MutableList<Color>) {
+    var i1 = i
+    while (true) {
+        val i0 = parent[i1]
+        if (i0 < 0) {
+            break
+        }
+        val i2 = if (i0 < i1) i0 else i1
+        mutableFills[i2] = color
+        //fillEdge(i1, i0, color)
+        i1 = i0
+    }
+    mutableFills[i1] = color
+    //fillCell(i1, color)
+}
+
+private fun DrawScope.fillCell(i: Int, color: Color) {
+    val x = i % size.mazeWidth()
+    val y = i / size.mazeWidth()
+    val x0 = x * CELL_SIZE + (x + 1) * CELL_SPACING
+    val y0 = y * CELL_SIZE + (y + 1) * CELL_SPACING
+    drawRect(
+        color = color,
+        topLeft = Offset(x0, y0),
+        size = Size(CELL_SIZE, CELL_SIZE),
+    )
+}
